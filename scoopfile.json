@@ -16,27 +16,7 @@
     "apps": [
         {
             "Source": "main",
-            "Name": "lessmsi"
-        },
-        {
-            "Source": "main",
-            "Name": "7zip"
-        },
-        {
-            "Source": "main",
-            "Name": "innounp"
-        },
-        {
-            "Source": "main",
-            "Name": "dark"
-        },
-        {
-            "Source": "main",
             "Name": "graphviz"
-        },
-        {
-            "Source": "versions",
-            "Name": "python311"
         },
         {
             "Source": "versions",
