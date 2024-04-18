@@ -224,6 +224,13 @@ Function Invoke-Build {
     }
 }
 
+function Invoke-Bootstrap {
+    # Download bootstrap scripts from external repository
+    Invoke-RestMethod https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.6.2/install.ps1 | Invoke-Expression
+    # Execute bootstrap script
+    . .\.bootstrap\bootstrap.ps1
+}
+
 ## start of script
 # Always set the $InformationPreference variable to "Continue" globally,
 # this way it gets printed on execution and continues execution afterwards.
@@ -240,16 +247,10 @@ try {
         Initialize-EnvPath
     }
 
-    if ($install) {
-        # Installation of Scoop, Python and pipenv via bootstrap
-        if (-Not (Test-Path -Path '.bootstrap')) {
-            New-Item -ItemType Directory '.bootstrap'
-        }
-        Invoke-RestMethod "https://raw.githubusercontent.com/avengineers/bootstrap/v1.3.0/bootstrap.ps1" -OutFile ".\.bootstrap\bootstrap.ps1"
-        Invoke-CommandLine ". .\.bootstrap\bootstrap.ps1" -Silent $true
-        Write-Output "For installation changes to take effect, please close and re-open your current shell."
-    }
-    else {
+    # Installation of Scoop, Python and pipenv via bootstrap
+    Invoke-Bootstrap
+
+    if (-Not $install) {
         # Call build system
         Invoke-Build `
             -target $target `
