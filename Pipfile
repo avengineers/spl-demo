@@ -4,10 +4,7 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-cookiecutter = "*"
-gcovr = "*"
-hammocking = "*"
-kconfiglib = "*"
+spl-core = "*"
 jinja2 = "*"
 pytest = "*"
 pytest-env = "*"

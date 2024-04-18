@@ -1,19 +1,20 @@
-from utils import ArtifactsCollection, SplBuild
+from pathlib import Path
+from spl_core.test_utils.base_variant_test_runner import BaseVariantTestRunner
 
 
-def test_build():
-    assert 0 == SplBuild(
-        variant="CustA/Disco",
-        build_kit="prod",
-        expected_artifacts=ArtifactsCollection(
-            artifacts=["spled.exe", "compile_commands.json"]
-        ),
-    ).execute(target="all", strict=True, archive=True)
+class Test_CustA__Disco(BaseVariantTestRunner):
 
+    @property
+    def component_paths(self):
+        return [
+            # Path("src/spled"),
+            Path("src/power_signal_processing"),
+            Path("src/light_controller"),
+            Path("src/keyboard_interface"),
+            # Path("src/console_interface"),
+            Path("src/main_control_knob"),
+        ]
 
-def test_reports():
-    assert 0 == SplBuild(
-        variant="CustA/Disco",
-        build_kit="test",
-        expected_artifacts=ArtifactsCollection(artifacts=["reports"]),
-    ).execute(target="reports", strict=True, archive=True)
+    @property
+    def expected_build_artifacts(self):
+        return [Path("spled.exe"), Path("compile_commands.json")]
