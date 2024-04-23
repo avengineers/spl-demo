@@ -1,9 +1,18 @@
-from utils import ArtifactsCollection, SplBuild
+from spl_core.test_utils.base_variant_test_runner import BaseVariantTestRunner
 
+class Test_Base__Dev(BaseVariantTestRunner):
 
-def test_reports():
-    assert 0 == SplBuild(
-        variant="Base/Dev",
-        build_kit="test",
-        expected_artifacts=ArtifactsCollection(artifacts=["reports"]),
-    ).execute(target="reports", strict=True, archive=True)
+    @property
+    def component_paths(self):
+        return []
+
+    @property
+    def expected_build_artifacts(self):
+        return []
+    
+    def test_build(self):
+        pass
+    
+    def test_unittest(self) -> None:
+        pass
+    

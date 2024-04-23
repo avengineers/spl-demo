@@ -15,6 +15,8 @@ https://go.microsoft.com/fwlink/?LinkID=135170
 param(
     [Parameter(Mandatory = $false, HelpMessage = 'Install all dependencies required to build. (Switch, default: false)')]
     [switch]$install = $false,
+    [Parameter(Mandatory = $false, HelpMessage = 'Build the target.')]
+    [switch]$build = $false,
     [Parameter(Mandatory = $false, HelpMessage = 'Clean build, wipe out all build artifacts. (Switch, default: false)')]
     [switch]$clean = $false,
     [Parameter(Mandatory = $false, HelpMessage = 'Build kit to be used. (String, default: "prod")')]
@@ -96,6 +98,13 @@ function Get-ReleaseBranchPytestFilter {
     }
 
     return $filter
+}
+
+function Invoke-Bootstrap {
+    # Download bootstrap scripts from external repository
+    Invoke-RestMethod https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.5.0/install.ps1 | Invoke-Expression
+    # Execute bootstrap script
+    . .\.bootstrap\bootstrap.ps1
 }
 
 
@@ -250,7 +259,7 @@ try {
     # Installation of Scoop, Python and pipenv via bootstrap
     Invoke-Bootstrap
 
-    if (-Not $install) {
+    if ($build) {
         # Call build system
         Invoke-Build `
             -target $target `
