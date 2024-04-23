@@ -34,7 +34,7 @@ param(
 )
 
 # Call a command and handle its exit code
-Function Invoke-CommandLine {
+function Invoke-CommandLine {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingInvokeExpression', '', Justification = 'Usually this statement must be avoided (https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/avoid-using-invoke-expression?view=powershell-7.3), here it is OK as it does not execute unknown code.')]
     param (
         [Parameter(Mandatory = $true, Position = 0)]
@@ -62,7 +62,7 @@ Function Invoke-CommandLine {
 }
 
 # Update/Reload current environment variable PATH with settings from registry
-Function Initialize-EnvPath {
+function Initialize-EnvPath {
     # workaround for system-wide installations
     if ($Env:USER_PATH_FIRST) {
         $Env:Path = [System.Environment]::GetEnvironmentVariable("Path", "User") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "Machine")
@@ -94,22 +94,17 @@ function Get-ReleaseBranchPytestFilter {
 
     $filter = ''
     if ($targetBranch -and ($targetBranch -match 'release/([^/]+/[^/]+)(.*)')) {
-        $filter = $Matches[1]
+        $filter = $Matches[1].Replace('/', ' and ')
     }
 
     return $filter
 }
 
-function Invoke-Bootstrap {
-    # Download bootstrap scripts from external repository
-    Invoke-RestMethod https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.5.0/install.ps1 | Invoke-Expression
-    # Execute bootstrap script
-    . .\.bootstrap\bootstrap.ps1
-}
+
 
 
 # Build with given parameters
-Function Invoke-Build {
+function Invoke-Build {
     param (
         [Parameter(Mandatory = $false)]
         [bool]$clean = $false,
