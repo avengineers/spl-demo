@@ -11,6 +11,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# Python virtual environment
+/.venv
+
 # Any log directory
 **/[Ll][Oo][Gg]/*
 
