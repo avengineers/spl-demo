@@ -26,7 +26,7 @@ jobs:
           .\build.ps1 -build -target selftests
         shell: powershell
       - name: Publish Test Results
-        uses: EnricoMi/publish-unit-test-result-action/composite@v2
+        uses: EnricoMi/publish-unit-test-result-action/windows@v2
         if: always()
         with:
           files: |
