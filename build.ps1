@@ -1,15 +1,6 @@
 ﻿<#
 .DESCRIPTION
-  Wrapper for installing dependencies and building the product.
-
-.Notes
-  On Windows, it may be required to call this script with the proper execution policy.
-You can do this by issuing the following PowerShell command:
-
-PS C:\> powershell -ExecutionPolicy Bypass -File .\build.ps1
-
-For more information on Execution Policies:
-https://go.microsoft.com/fwlink/?LinkID=135170
+    Wrapper for installing dependencies, running and testing the project
 #>
 
 param(
@@ -33,7 +24,6 @@ param(
     [switch]$reconfigure = $false
 )
 
-# Call a command and handle its exit code
 function Invoke-CommandLine {
     [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingInvokeExpression', '', Justification = 'Usually this statement must be avoided (https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/avoid-using-invoke-expression?view=powershell-7.3), here it is OK as it does not execute unknown code.')]
     param (
@@ -42,21 +32,27 @@ function Invoke-CommandLine {
         [Parameter(Mandatory = $false, Position = 1)]
         [bool]$StopAtError = $true,
         [Parameter(Mandatory = $false, Position = 2)]
+        [bool]$PrintCommand = $true,
+        [Parameter(Mandatory = $false, Position = 3)]
         [bool]$Silent = $false
     )
-    if (-Not $Silent) {
+    if ($PrintCommand) {
         Write-Output "Executing: $CommandLine"
     }
     $global:LASTEXITCODE = 0
-    Invoke-Expression $CommandLine
+    if ($Silent) {
+        # Omit information stream (6) and stdout (1)
+        Invoke-Expression $CommandLine 6>&1 | Out-Null
+    }
+    else {
+        Invoke-Expression $CommandLine
+    }
     if ($global:LASTEXITCODE -ne 0) {
         if ($StopAtError) {
-            Write-Error "Command line call '$CommandLine' failed with exit code $global:LASTEXITCODE"
+            Write-Error "Command line call `"$CommandLine`" failed with exit code $global:LASTEXITCODE"
         }
         else {
-            if (-Not $Silent) {
-                Write-Output "Command line call '$CommandLine' failed with exit code $global:LASTEXITCODE, continuing ..."
-            }
+            Write-Output "Command line call `"$CommandLine`" failed with exit code $global:LASTEXITCODE, continuing ..."
         }
     }
 }
@@ -100,9 +96,6 @@ function Get-ReleaseBranchPytestFilter {
     return $filter
 }
 
-
-
-
 # Build with given parameters
 function Invoke-Build {
     param (
@@ -131,10 +124,7 @@ function Invoke-Build {
 
         # fresh and clean CMake builds
         if ($clean) {
-            if (Test-Path -Path $buildFolder) {
-                Write-Output "Removing build folder '$buildFolder' ..."
-                Remove-Item $buildFolder -Force -Recurse
-            }
+            Remove-Path $buildFolder
         }
 
         # Filter pytest test cases
@@ -152,12 +142,10 @@ function Invoke-Build {
         $pytestJunitXml = "test/output/test-report.xml"
 
         # Delete any old pytest result
-        if (Test-Path -Path $pytestJunitXml) {
-            Remove-Item $pytestJunitXml -Force
-        }
+        Remove-Path $pytestJunitXml
 
         # Finally run pytest
-        Invoke-CommandLine -CommandLine "python -m pipenv run python -m pytest test --junitxml=$pytestJunitXml $filterCmd"
+        Invoke-CommandLine ".venv\Scripts\pipenv run python -m pytest test --junitxml=$pytestJunitXml $filterCmd"
     }
     else {
         if ((-Not $variants) -or ($variants -eq 'all')) {
@@ -197,20 +185,13 @@ function Invoke-Build {
             $buildFolder = "build/$variant/$buildKit"
             # fresh and clean build
             if ($clean) {
-                if (Test-Path -Path $buildFolder) {
-                    Write-Output "Removing build folder '$buildFolder' ..."
-                    Remove-Item $buildFolder -Force -Recurse
-                }
+                Remove-Path $buildFolder
             }
 
             # delete CMake cache and reconfigure
             if ($reconfigure) {
-                if (Test-Path -Path "$buildFolder/CMakeCache.txt") {
-                    Remove-Item "$buildFolder/CMakeCache.txt" -Force
-                }
-                if (Test-Path -Path "$buildFolder/CMakeFiles") {
-                    Remove-Item "$buildFolder/CMakeFiles" -Force -Recurse
-                }
+                Remove-Path "$buildFolder/CMakeCache.txt"
+                Remove-Path "$buildFolder/CMakeFiles"
             }
 
             # CMake configure
@@ -218,21 +199,36 @@ function Invoke-Build {
             if ($buildKit -eq "test") {
                 $additionalConfig += " -DCMAKE_TOOLCHAIN_FILE='tools/toolchains/gcc/toolchain.cmake'"
             }
-            Invoke-CommandLine -CommandLine "python -m pipenv run cmake -B '$buildFolder' -G Ninja -DVARIANT='$variant' $additionalConfig"
+            Invoke-CommandLine -CommandLine ".venv\Scripts\pipenv run cmake -B '$buildFolder' -G Ninja -DVARIANT='$variant' $additionalConfig"
 
             # CMake clean all dead artifacts. Required when running incremented builds to delete obsolete artifacts.
-            Invoke-CommandLine -CommandLine "python -m pipenv run cmake --build '$buildFolder' --target $target -- -t cleandead"
+            Invoke-CommandLine -CommandLine ".venv\Scripts\pipenv run cmake --build '$buildFolder' --target $target -- -t cleandead"
             # CMake build
-            Invoke-CommandLine -CommandLine "python -m pipenv run cmake --build '$buildFolder' --target $target -- $ninjaArgs"
+            Invoke-CommandLine -CommandLine ".venv\Scripts\pipenv run cmake --build '$buildFolder' --target $target -- $ninjaArgs"
         }
     }
 }
 
 function Invoke-Bootstrap {
     # Download bootstrap scripts from external repository
-    Invoke-RestMethod https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.6.2/install.ps1 | Invoke-Expression
+    Invoke-RestMethod https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.7.0/install.ps1 | Invoke-Expression
     # Execute bootstrap script
     . .\.bootstrap\bootstrap.ps1
+}
+
+function Remove-Path {
+    param (
+        [Parameter(Mandatory = $true, Position = 0)]
+        [string]$path
+    )
+    if (Test-Path -Path $path -PathType Container) {
+        Write-Output "Deleting directory '$path' ..."
+        Remove-Item $path -Force -Recurse
+    }
+    elseif (Test-Path -Path $path -PathType Leaf) {
+        Write-Output "Deleting file '$path' ..."
+        Remove-Item $path -Force
+    }
 }
 
 ## start of script
@@ -251,7 +247,7 @@ try {
         Initialize-EnvPath
     }
 
-    # Installation of Scoop, Python and pipenv via bootstrap
+    # bootstrap environment
     Invoke-Bootstrap
 
     if ($build) {
