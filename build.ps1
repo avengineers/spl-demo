@@ -261,10 +261,11 @@ function New-Directory {
 
 function Invoke-Bootstrap {
     # Download bootstrap scripts from external repository
-    Invoke-RestMethod https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.8.0/install.ps1 | Invoke-Expression
+    Invoke-RestMethod https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.9.0/install.ps1 | Invoke-Expression
     # Execute bootstrap script
     . .\.bootstrap\bootstrap.ps1
 }
+
 ## start of script
 # Always set the $InformationPreference variable to "Continue" globally,
 # this way it gets printed on execution and continues execution afterwards.
