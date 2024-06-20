@@ -23,7 +23,8 @@ jobs:
           # Workaround to force usage of scoop apps installed in USERPROFILE.
           USER_PATH_FIRST: 1
         run: |
-          .\build.ps1 -build -target selftests
+          .\build.ps1 -install
+          .\build.ps1 -selftests
         shell: powershell
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action/windows@v2
