@@ -30,7 +30,7 @@ include(FetchContent)
 FetchContent_Declare(
     spl-core
     GIT_REPOSITORY https://github.com/avengineers/spl-core.git
-    GIT_TAG v4.4.1
+    GIT_TAG v4.5.0
 )
 FetchContent_MakeAvailable(spl-core)
 

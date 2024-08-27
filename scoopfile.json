@@ -1,12 +1,12 @@
 {
     "buckets": [
         {
-            "Name": "main",
-            "Source": "https://github.com/ScoopInstaller/Main"
-        },
-        {
             "Name": "spl",
             "Source": "https://github.com/avengineers/spl-bucket"
+        },
+        {
+            "Name": "main",
+            "Source": "https://github.com/ScoopInstaller/Main"
         }
     ],
     "apps": [
