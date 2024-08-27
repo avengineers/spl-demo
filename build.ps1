@@ -23,7 +23,9 @@ param(
     [Parameter(Mandatory = $false, HelpMessage = 'Additional build arguments for Ninja (e.g., "-d explain -d keepdepfile" for debugging purposes)')]
     [string]$ninjaArgs = "",
     [Parameter(Mandatory = $false, HelpMessage = 'Delete CMake cache and reconfigure. (Switch, default: false)')]
-    [switch]$reconfigure = $false
+    [switch]$reconfigure = $false,
+    [Parameter(Mandatory = $false, HelpMessage = 'Just configure the build and fetch all dependencies. (Switch, default: false)')]
+    [switch]$configureOnly = $false
 )
 
 function Invoke-CommandLine {
@@ -114,7 +116,9 @@ function Invoke-Build-System {
         [Parameter(Mandatory = $false)]
         [string]$ninjaArgs = "",
         [Parameter(Mandatory = $false)]
-        [bool]$reconfigure = $false
+        [bool]$reconfigure = $false,
+        [Parameter(Mandatory = $false)]
+        [bool]$configureOnly = $false
     )
     # Determine variants to be built
     if ((-Not $variants) -or ($variants -eq 'all')) {
@@ -159,7 +163,6 @@ function Invoke-Build-System {
 
     Foreach ($variant in $variantsSelected) {
         $buildFolder = "build\$variant\$buildKit".Replace("/", "\")
-        $variantFolder = "variants\$variant".Replace("/", "\")
         # fresh and clean build
         if ($clean) {
             Remove-Path $buildFolder
@@ -167,7 +170,7 @@ function Invoke-Build-System {
         New-Directory $buildFolder
 
         # delete CMake cache and reconfigure
-        if ($reconfigure) {
+        if ($reconfigure -or $configureOnly) {
             Remove-Path "$buildFolder\CMakeCache.txt"
             Remove-Path "$buildFolder\CMakeFiles"
         }
@@ -182,12 +185,14 @@ function Invoke-Build-System {
             }
             Invoke-CommandLine -CommandLine ".venv\Scripts\pipenv run cmake -B '$buildFolder' -G Ninja -DVARIANT='$variant' $additionalConfig"
 
-            $cmd = ".venv\Scripts\pipenv run cmake --build '$buildFolder' --target $target"
+            if (-Not $configureOnly) {
+                $cmd = ".venv\Scripts\pipenv run cmake --build '$buildFolder' --target $target"
 
-            # CMake clean all dead artifacts. Required when running incremented builds to delete obsolete artifacts.
-            Invoke-CommandLine -CommandLine "$cmd -- -t cleandead"
-            # CMake build
-            Invoke-CommandLine -CommandLine "$cmd -- $ninjaArgs"
+                # CMake clean all dead artifacts. Required when running incremented builds to delete obsolete artifacts.
+                Invoke-CommandLine -CommandLine "$cmd -- -t cleandead"
+                # CMake build
+                Invoke-CommandLine -CommandLine "$cmd -- $ninjaArgs"
+            }
         }
     }
 }
@@ -261,9 +266,11 @@ function New-Directory {
 
 function Invoke-Bootstrap {
     # Download bootstrap scripts from external repository
-    Invoke-RestMethod https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.9.0/install.ps1 | Invoke-Expression
+    Invoke-RestMethod -Uri https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.13.0/install.ps1 | Invoke-Expression
     # Execute bootstrap script
     . .\.bootstrap\bootstrap.ps1
+    # For incremental build: clean up virtual environment from old dependencies
+    Invoke-CommandLine ".venv\Scripts\pipenv clean"
 }
 
 ## start of script
@@ -278,10 +285,6 @@ Push-Location $PSScriptRoot
 Write-Output "Running in ${pwd}"
 
 try {
-    if (Test-RunningInCIorTestEnvironment -or $Env:USER_PATH_FIRST) {
-        Initialize-EnvPath
-    }
-
     if ($install) {
         if ($clean) {
             Remove-Path ".venv"
@@ -289,6 +292,10 @@ try {
 
         # bootstrap environment
         Invoke-Bootstrap
+    }
+
+    if (Test-RunningInCIorTestEnvironment -or $Env:USER_PATH_FIRST) {
+        Initialize-EnvPath
     }
 
     if ($build) {
@@ -300,7 +307,8 @@ try {
             -buildKit $buildKit `
             -variants $variants `
             -reconfigure $reconfigure `
-            -ninjaArgs $ninjaArgs `
+            -configureOnly $configureOnly `
+            -ninjaArgs $ninjaArgs
     }
 
     if ($selftests) {

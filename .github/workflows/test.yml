@@ -32,7 +32,7 @@ jobs:
         with:
           files: |
             test/output/test-report.xml
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: artifacts.zip
           retention-days: 90

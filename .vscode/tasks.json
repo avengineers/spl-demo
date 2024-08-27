@@ -88,6 +88,18 @@
                 "kind": "build",
                 "isDefault": false
             }
+        },
+        {
+            "label": "open coverage report",
+            "command": "${workspaceFolder}/build/${input:variant}/test/src/${input:component}/reports/coverage/index.html",
+            "type": "shell",
+            "presentation": {
+                "reveal": "always"
+            },
+            "group": {
+                "kind": "build",
+                "isDefault": false
+            }
         }
     ],
     "inputs": [
