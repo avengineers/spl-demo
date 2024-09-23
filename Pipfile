@@ -4,13 +4,14 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-spl-core = ">=4.5"
-pytest = "*"
-pytest-env = "*"
-pipenv = "*"
-testfixtures = "*"
-black = "*"
-pip-system-certs = "*"
+spl-core = ">=5.0.0"
+pytest = ">=8.3"
+pytest-env = ">=1.1.5"
+pipenv = ">=2024.0.3"
+testfixtures = ">=8.3"
+pip-system-certs = ">=4.0"
 
 [requires]
 python_version = "3.11"
+
+[dev-packages]
