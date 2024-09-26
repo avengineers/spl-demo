@@ -8,7 +8,7 @@ extern "C" {
 #include "mockup_src_examples_check_abort.h"
 
 // Just provide a simple test case for the function CheckAbort
-// to reach 100% MC/DC coverage.
+// to reach 100% MC/DC.
 TEST(check_abort, test_mcdc)
 {
     CREATE_MOCK(mymock);
