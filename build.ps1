@@ -121,11 +121,12 @@ function Invoke-Build-System {
         [bool]$configureOnly = $false
     )
     # Determine variants to be built
+    $defaultVariantsFolder = ".\variants\"
     if ((-Not $variants) -or ($variants -eq 'all')) {
-        $dirs = Get-Childitem -Include config.cmake -Path variants -Recurse | Resolve-Path -Relative
+        $variantConfigs = Get-Childitem -Include config.cmake -Path $defaultVariantsFolder -Recurse | Resolve-Path -Relative
         $variantsList = @()
-        Foreach ($dir in $dirs) {
-            $variant = (get-item $dir).Directory.Parent.BaseName + "/" + (get-item $dir).Directory.BaseName
+        Foreach ($variantConfig in $variantConfigs) {
+            $variant = ((Get-Item $variantConfig).Directory | Resolve-Path -Relative).Replace($defaultVariantsFolder, "").Replace("\", "/")
             $variantsList += $variant
         }
         $variantsSelected = @()
@@ -153,7 +154,7 @@ function Invoke-Build-System {
         }
     }
     else {
-        $variantsSelected = $Variants.Replace('\', '/').Replace('./variant/', '').Replace('./variants/', '').Split(',') | ForEach-Object { $_.TrimEnd('/') }
+        $variantsSelected = $Variants.Replace($defaultVariantsFolder, "").Replace("\", "/").Split(',') | ForEach-Object { $_.TrimEnd('/') }
     }
 
     # Select 'test' build kit based on target
@@ -264,6 +265,16 @@ function New-Directory {
     }
 }
 
+function Get-User-Menu-Selection {
+    if ((-Not $install) -and (-Not $build) -and (-Not $command) -and (-Not $selftests)) {
+        Clear-Host
+        Write-Information -Tags "Info:" -MessageData "None of the following command line options was given:"
+        Write-Information -Tags "Info:" -MessageData ("(1) -install: installation of mandatory dependencies")
+        Write-Information -Tags "Info:" -MessageData ("(2) -build: execute CMake build")
+        return(Read-Host "Please make a selection")
+    }
+}
+
 function Invoke-Bootstrap {
     # Download bootstrap scripts from external repository
     Invoke-RestMethod -Uri https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.14.0/install.ps1 | Invoke-Expression
@@ -285,6 +296,26 @@ Push-Location $PSScriptRoot
 Write-Output "Running in ${pwd}"
 
 try {
+    if (Test-RunningInCIorTestEnvironment -or $Env:USER_PATH_FIRST) {
+        Initialize-EnvPath
+    }
+
+    $selectedOption = Get-User-Menu-Selection
+
+    switch ($selectedOption) {
+        '1' {
+            Write-Information -Tags "Info:" -MessageData "Installing Dependencies ..."
+            $install = $true
+        }
+        '2' {
+            Write-Information -Tags "Info:" -MessageData "Building ..."
+            $build = $true
+        }
+        default {
+            Write-Information -Tags "Info:" -MessageData "Nothing selected."
+        }
+    }
+
     if ($install) {
         if ($clean) {
             Remove-Path ".venv"
@@ -292,10 +323,12 @@ try {
 
         # bootstrap environment
         Invoke-Bootstrap
-    }
 
-    if (Test-RunningInCIorTestEnvironment -or $Env:USER_PATH_FIRST) {
-        Initialize-EnvPath
+        if (Test-RunningInCIorTestEnvironment -or $Env:USER_PATH_FIRST) {
+            Initialize-EnvPath
+        }
+
+        Write-Host -ForegroundColor Black -BackgroundColor Blue "For installation changes to take effect, please close and re-open your current terminal."
     }
 
     if ($build) {
