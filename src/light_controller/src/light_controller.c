@@ -138,7 +138,7 @@ void lightController(void) {
         }
         break;
 
-    case LIGHT_ON:
+    default: // LIGHT_ON
         if (powerState == POWER_STATE_OFF) {
             turnLightOff();
             currentLightState = LIGHT_OFF;
