@@ -3,7 +3,6 @@ from spl_core.test_utils.base_variant_test_runner import BaseVariantTestRunner
 
 
 class Test_CustA__Disco(BaseVariantTestRunner):
-
     @property
     def component_paths(self):
         return [

@@ -6,6 +6,8 @@
 param(
     [Parameter(Mandatory = $false, HelpMessage = 'Install all dependencies required to build. (Switch, default: false)')]
     [switch]$install = $false,
+    [Parameter(Mandatory = $false, HelpMessage = 'Install optional dependencies. (Switch, default: false)')]
+    [switch]$installOptional = $false,
     [Parameter(Mandatory = $false, HelpMessage = 'Run all CI tests (python tests with pytest) (Switch, default: false)')]
     [switch]$selftests = $false,
     [Parameter(Mandatory = $false, HelpMessage = 'Build the target.')]
@@ -18,8 +20,10 @@ param(
     [string]$target = "all",
     [Parameter(Mandatory = $false, HelpMessage = 'Variants (of the product) to be built (List of strings, leave empty to be asked or "all" for automatic build of all variants)')]
     [string[]]$variants = $null,
-    [Parameter(Mandatory = $false, HelpMessage = 'filter for selftests; define in pytest syntax: https://docs.pytest.org/en/6.2.x/usage.html; e.g. "Disco or test_CustA__Disco.py"')]
+    [Parameter(Mandatory = $false, HelpMessage = 'filter for self tests, e.g. "Disco or test_CustA__Disco.py" (see https://docs.pytest.org/en/stable/usage.html).')]
     [string]$filter = "",
+    [Parameter(Mandatory = $false, HelpMessage = 'Marker for self tests, e.g. "static_analysis" (see https://docs.pytest.org/en/stable/how-to/mark.html).')]
+    [string]$marker = "",
     [Parameter(Mandatory = $false, HelpMessage = 'Additional build arguments for Ninja (e.g., "-d explain -d keepdepfile" for debugging purposes)')]
     [string]$ninjaArgs = "",
     [Parameter(Mandatory = $false, HelpMessage = 'Delete CMake cache and reconfigure. (Switch, default: false)')]
@@ -203,7 +207,9 @@ function Invoke-Self-Tests {
         [Parameter(Mandatory = $false)]
         [bool]$clean = $false,
         [Parameter(Mandatory = $false)]
-        [string]$filter = ""
+        [string]$filter = "",
+        [Parameter(Mandatory = $false)]
+        [string]$marker = ""
     )
 
     # Run python tests to test all relevant variants and platforms (build kits)
@@ -218,25 +224,34 @@ function Invoke-Self-Tests {
         $Env:PYTEST_SPL_BUILD_CLEAN = 1
     }
 
-    # Filter pytest test cases
-    $filterCmd = ''
-    $releaseBranchFilter = Get-ReleaseBranchPytestFilter
-    if ($releaseBranchFilter) {
-        $filterCmd = "-k '$releaseBranchFilter'"
-    }
-    # otherwise consider command line option '-filter' if given
-    elseif ($filter) {
-        $filterCmd = "-k '$filter'"
-    }
-
     # Test result of pytest
     $pytestJunitXml = "test/output/test-report.xml"
 
     # Delete any old pytest result
     Remove-Path $pytestJunitXml
 
+    $pytestArgs = @(
+        "--junitxml=$pytestJunitXml"
+    )
+
+    # Filter pytest test cases
+    $releaseBranchFilter = Get-ReleaseBranchPytestFilter
+    if ($releaseBranchFilter) {
+        $pytestArgs += "-k '$releaseBranchFilter'"
+    }
+    # otherwise consider command line option '-filter' if given
+    elseif ($filter) {
+        $pytestArgs += "-k '$filter'"
+    }
+
+    # Execute marker tests
+    if ($marker) {
+        $pytestArgs += "-m '$marker'"
+    }
+
     # Finally run pytest
-    Invoke-CommandLine -CommandLine ".venv\Scripts\pipenv run python -m pytest --junitxml=$pytestJunitXml $filterCmd"
+    $commandLine = ".venv\Scripts\pipenv run python -m pytest " + ($pytestArgs -join " ")
+    Invoke-CommandLine -CommandLine $commandLine
 }
 
 function Remove-Path {
@@ -266,18 +281,19 @@ function New-Directory {
 }
 
 function Get-User-Menu-Selection {
-    if ((-Not $install) -and (-Not $build) -and (-Not $command) -and (-Not $selftests)) {
+    if ((-Not $install) -and (-Not $installOptional) -and (-Not $build) -and (-Not $command) -and (-Not $selftests)) {
         Clear-Host
         Write-Information -Tags "Info:" -MessageData "None of the following command line options was given:"
         Write-Information -Tags "Info:" -MessageData ("(1) -install: installation of mandatory dependencies")
-        Write-Information -Tags "Info:" -MessageData ("(2) -build: execute CMake build")
+        Write-Information -Tags "Info:" -MessageData ("(2) -installOptional: installation of optional dependencies")
+        Write-Information -Tags "Info:" -MessageData ("(3) -build: execute CMake build")
         return(Read-Host "Please make a selection")
     }
 }
 
 function Invoke-Bootstrap {
     # Download bootstrap scripts from external repository
-    Invoke-RestMethod -Uri https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.14.0/install.ps1 | Invoke-Expression
+    Invoke-RestMethod -Uri https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.15.1/install.ps1 | Invoke-Expression
     # Execute bootstrap script
     . .\.bootstrap\bootstrap.ps1
     # For incremental build: clean up virtual environment from old dependencies
@@ -304,10 +320,14 @@ try {
 
     switch ($selectedOption) {
         '1' {
-            Write-Information -Tags "Info:" -MessageData "Installing Dependencies ..."
+            Write-Information -Tags "Info:" -MessageData "Installing mandatory dependencies ..."
             $install = $true
         }
         '2' {
+            Write-Information -Tags "Info:" -MessageData "Installing optional dependencies ..."
+            $installOptional = $true
+        }
+        '3' {
             Write-Information -Tags "Info:" -MessageData "Building ..."
             $build = $true
         }
@@ -331,6 +351,10 @@ try {
         Write-Host -ForegroundColor Black -BackgroundColor Blue "For installation changes to take effect, please close and re-open your current terminal."
     }
 
+    if ($installOptional) {
+        Invoke-CommandLine "scoop import scoopfile-optional.json"
+    }
+
     if ($build) {
         # Call build system to build variant(s)
         Invoke-Build-System `
@@ -345,7 +369,7 @@ try {
     }
 
     if ($selftests) {
-        Invoke-Self-Tests -clean $clean -filter $filter
+        Invoke-Self-Tests -clean $clean -filter $filter -marker $marker
     }
 }
 finally {
