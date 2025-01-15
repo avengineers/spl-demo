@@ -92,7 +92,7 @@ static void turnLightOn(void) {
  *    :implements: SWDD_LC-002
  * @endrst
  */
-static_scope_file unsigned int calculateBlinkPeriod(percentage_t mainKnobValue) {
+SPLE_TESTABLE_STATIC unsigned int calculateBlinkPeriod(percentage_t mainKnobValue) {
     // Calculate blink period based on main knob value
     unsigned int blinkPeriod = 100 - (mainKnobValue); // Adjust this formula as needed
 
@@ -109,7 +109,7 @@ static_scope_file unsigned int calculateBlinkPeriod(percentage_t mainKnobValue) 
  *    :id: SWIMPL_LC-006
  *    :implements: SWDD_LC-001
  * @endrst
- * 
+ *
  * @brief Controls the light state.
  *
  * Uses a state machine to determine the light state based on several inputs,
