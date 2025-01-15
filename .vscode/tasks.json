@@ -59,7 +59,8 @@
             "description": "Which variant do you want to select?",
             "options": [
                 "CustA/Disco",
-                "CustB/Sleep"
+                "CustB/Sleep",
+                "Base/Dev"
             ]
         },
         {
@@ -75,7 +76,8 @@
                 "main_control_knob",
                 "power_signal_processing",
                 "rte",
-                "spled"
+                "spled",
+                "examples/component_a"
             ]
         }
     ]

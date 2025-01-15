@@ -26,7 +26,6 @@ int CheckReadSomeDataAndReturn() {
     }
 }
 
-
 int CheckReadMultipleDataAndReturn() {
     int var1 = 0;
     int var2 = 0;
@@ -40,7 +39,6 @@ int CheckReadMultipleDataAndReturn() {
     }
 }
 
-
 void CheckReadDataStructure(MyDataType* output) {
     ReadDataStructure(output);
 }
@@ -48,7 +46,6 @@ void CheckReadDataStructure(MyDataType* output) {
 void CheckReadDataStructureArray(MyDataType* output) {
     ReadDataStructureArray(output);
 }
-
 
 extern void CalculateSquare(void) {
     int input, output;
