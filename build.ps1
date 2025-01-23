@@ -8,10 +8,14 @@ param(
     [switch]$install = $false,
     [Parameter(Mandatory = $false, HelpMessage = 'Install optional dependencies. (Switch, default: false)')]
     [switch]$installOptional = $false,
+    [Parameter(Mandatory = $false, HelpMessage = 'Install Visual Studio Code. (Switch, default: false)')]
+    [switch]$installVSCode = $false,
     [Parameter(Mandatory = $false, HelpMessage = 'Run all CI tests (python tests with pytest) (Switch, default: false)')]
     [switch]$selftests = $false,
     [Parameter(Mandatory = $false, HelpMessage = 'Build the target.')]
     [switch]$build = $false,
+    [Parameter(Mandatory = $false, HelpMessage = 'Command to be executed (String)')]
+    [string]$command = "",
     [Parameter(Mandatory = $false, HelpMessage = 'Clean build, wipe out all build artifacts. (Switch, default: false)')]
     [switch]$clean = $false,
     [Parameter(Mandatory = $false, HelpMessage = 'Build kit to be used. (String, default: "prod")')]
@@ -214,14 +218,11 @@ function Invoke-Self-Tests {
 
     # Run python tests to test all relevant variants and platforms (build kits)
     # (normally run in CI environment/Jenkins)
-    Write-Output "Running all selfstests ..."
+    Write-Output "Running all self tests ..."
 
     if ($clean) {
         # Remove all build outputs in one step, this will remove obsolete variants, too.
         Remove-Path "build"
-
-        # pytest's sub builds shall be clean ones, too.
-        $Env:PYTEST_SPL_BUILD_CLEAN = 1
     }
 
     # Test result of pytest
@@ -249,9 +250,9 @@ function Invoke-Self-Tests {
         $pytestArgs += "-m '$marker'"
     }
 
-    # Finally run pytest
+    # Finally run pytest and ignore return value. Content of test-report.xml will be evaluated by CI system.
     $commandLine = ".venv\Scripts\pipenv run python -m pytest " + ($pytestArgs -join " ")
-    Invoke-CommandLine -CommandLine $commandLine
+    Invoke-CommandLine -CommandLine $commandLine -StopAtError $false
 }
 
 function Remove-Path {
@@ -281,14 +282,13 @@ function New-Directory {
 }
 
 function Get-User-Menu-Selection {
-    if ((-Not $install) -and (-Not $installOptional) -and (-Not $build) -and (-Not $command) -and (-Not $selftests)) {
-        Clear-Host
-        Write-Information -Tags "Info:" -MessageData "None of the following command line options was given:"
-        Write-Information -Tags "Info:" -MessageData ("(1) -install: installation of mandatory dependencies")
-        Write-Information -Tags "Info:" -MessageData ("(2) -installOptional: installation of optional dependencies")
-        Write-Information -Tags "Info:" -MessageData ("(3) -build: execute CMake build")
-        return(Read-Host "Please make a selection")
-    }
+    Clear-Host
+    Write-Information -Tags "Info:" -MessageData "None of the following command line options was given:"
+    Write-Information -Tags "Info:" -MessageData ("(1) -install: installation of mandatory dependencies")
+    Write-Information -Tags "Info:" -MessageData ("(2) -installOptional: installation of optional dependencies")
+    Write-Information -Tags "Info:" -MessageData ("(3) -installVSCode: installation of Visual Studio Code")
+    Write-Information -Tags "Info:" -MessageData ("(4) -build: execute CMake build")
+    return(Read-Host "Please make a selection")
 }
 
 function Invoke-Bootstrap {
@@ -316,23 +316,29 @@ try {
         Initialize-EnvPath
     }
 
-    $selectedOption = Get-User-Menu-Selection
+    if ((-Not $install) -and (-Not $installOptional) -and (-Not $installVSCode) -and (-Not $build) -and (-Not $command) -and (-Not $selftests)) {
+        $selectedOption = Get-User-Menu-Selection
 
-    switch ($selectedOption) {
-        '1' {
-            Write-Information -Tags "Info:" -MessageData "Installing mandatory dependencies ..."
-            $install = $true
-        }
-        '2' {
-            Write-Information -Tags "Info:" -MessageData "Installing optional dependencies ..."
-            $installOptional = $true
-        }
-        '3' {
-            Write-Information -Tags "Info:" -MessageData "Building ..."
-            $build = $true
-        }
-        default {
-            Write-Information -Tags "Info:" -MessageData "Nothing selected."
+        switch ($selectedOption) {
+            '1' {
+                Write-Information -Tags "Info:" -MessageData "Installing mandatory dependencies ..."
+                $install = $true
+            }
+            '2' {
+                Write-Information -Tags "Info:" -MessageData "Installing optional dependencies ..."
+                $installOptional = $true
+            }
+            '3' {
+                Write-Information -Tags "Info:" -MessageData "Installing Visual Studio Code ..."
+                $installVSCode = $true
+            }
+            '4' {
+                Write-Information -Tags "Info:" -MessageData "Building ..."
+                $build = $true
+            }
+            default {
+                Write-Information -Tags "Info:" -MessageData "Nothing selected."
+            }
         }
     }
 
@@ -355,6 +361,12 @@ try {
         Invoke-CommandLine "scoop import scoopfile-optional.json"
     }
 
+    if ($installVSCode) {
+        Invoke-CommandLine "scoop bucket add extras" -StopAtError $false
+        Invoke-CommandLine "scoop install vscode"
+        Invoke-CommandLine "scoop update vscode" -StopAtError $false
+    }
+
     if ($build) {
         # Call build system to build variant(s)
         Invoke-Build-System `
@@ -370,6 +382,10 @@ try {
 
     if ($selftests) {
         Invoke-Self-Tests -clean $clean -filter $filter -marker $marker
+    }
+
+    if ($command -ne '') {
+        Invoke-Expression "$command"
     }
 }
 finally {
