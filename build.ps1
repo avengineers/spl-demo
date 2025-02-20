@@ -36,54 +36,6 @@ param(
     [switch]$configureOnly = $false
 )
 
-function Invoke-CommandLine {
-    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSAvoidUsingInvokeExpression', '', Justification = 'Usually this statement must be avoided (https://learn.microsoft.com/en-us/powershell/scripting/learn/deep-dives/avoid-using-invoke-expression?view=powershell-7.3), here it is OK as it does not execute unknown code.')]
-    param (
-        [Parameter(Mandatory = $true, Position = 0)]
-        [string]$CommandLine,
-        [Parameter(Mandatory = $false, Position = 1)]
-        [bool]$StopAtError = $true,
-        [Parameter(Mandatory = $false, Position = 2)]
-        [bool]$PrintCommand = $true,
-        [Parameter(Mandatory = $false, Position = 3)]
-        [bool]$Silent = $false
-    )
-    if ($PrintCommand) {
-        Write-Output "Executing: $CommandLine"
-    }
-    $global:LASTEXITCODE = 0
-    if ($Silent) {
-        # Omit information stream (6) and stdout (1)
-        Invoke-Expression $CommandLine 6>&1 | Out-Null
-    }
-    else {
-        Invoke-Expression $CommandLine
-    }
-    if ($global:LASTEXITCODE -ne 0) {
-        if ($StopAtError) {
-            Write-Error "Command line call `"$CommandLine`" failed with exit code $global:LASTEXITCODE"
-        }
-        else {
-            Write-Output "Command line call `"$CommandLine`" failed with exit code $global:LASTEXITCODE, continuing ..."
-        }
-    }
-}
-
-# Update/Reload current environment variable PATH with settings from registry
-function Initialize-EnvPath {
-    # workaround for system-wide installations
-    if ($Env:USER_PATH_FIRST) {
-        $Env:Path = [System.Environment]::GetEnvironmentVariable("Path", "User") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "Machine")
-    }
-    else {
-        $Env:Path = [System.Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path", "User")
-    }
-}
-
-function Test-RunningInCIorTestEnvironment {
-    return [Boolean]($Env:JENKINS_URL -or $Env:PYTEST_CURRENT_TEST -or $Env:GITHUB_ACTIONS)
-}
-
 # Consider CI environment variables (e.g. on Jenkins BRANCH_NAME and CHANGE_TARGET) to filter tests in release branch builds
 function Get-ReleaseBranchPytestFilter {
     $ChangeId = $env:CHANGE_ID
@@ -288,12 +240,13 @@ function Get-User-Menu-Selection {
     Write-Information -Tags "Info:" -MessageData ("(2) -installOptional: installation of optional dependencies")
     Write-Information -Tags "Info:" -MessageData ("(3) -installVSCode: installation of Visual Studio Code")
     Write-Information -Tags "Info:" -MessageData ("(4) -build: execute CMake build")
+    Write-Information -Tags "Info:" -MessageData ("(5) quit: exit script")
     return(Read-Host "Please make a selection")
 }
 
 function Invoke-Bootstrap {
     # Download bootstrap scripts from external repository
-    Invoke-RestMethod -Uri https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.15.1/install.ps1 | Invoke-Expression
+    Invoke-RestMethod -Uri https://raw.githubusercontent.com/avengineers/bootstrap-installer/v1.16.0/install.ps1 | Invoke-Expression
     # Execute bootstrap script
     . .\.bootstrap\bootstrap.ps1
     # For incremental build: clean up virtual environment from old dependencies
@@ -312,10 +265,6 @@ Push-Location $PSScriptRoot
 Write-Output "Running in ${pwd}"
 
 try {
-    if (Test-RunningInCIorTestEnvironment -or $Env:USER_PATH_FIRST) {
-        Initialize-EnvPath
-    }
-
     if ((-Not $install) -and (-Not $installOptional) -and (-Not $installVSCode) -and (-Not $build) -and (-Not $command) -and (-Not $selftests)) {
         $selectedOption = Get-User-Menu-Selection
 
@@ -338,6 +287,7 @@ try {
             }
             default {
                 Write-Information -Tags "Info:" -MessageData "Nothing selected."
+                exit
             }
         }
     }
@@ -349,16 +299,17 @@ try {
 
         # bootstrap environment
         Invoke-Bootstrap
+    }
 
-        if (Test-RunningInCIorTestEnvironment -or $Env:USER_PATH_FIRST) {
-            Initialize-EnvPath
-        }
+    # Load bootstrap's utility functions
+    . .\.bootstrap\utils.ps1
 
-        Write-Host -ForegroundColor Black -BackgroundColor Blue "For installation changes to take effect, please close and re-open your current terminal."
+    if (Test-RunningInCIorTestEnvironment -or $Env:USER_PATH_FIRST) {
+        Initialize-EnvPath
     }
 
     if ($installOptional) {
-        Invoke-CommandLine "scoop import scoopfile-optional.json"
+        Import-ScoopFile "scoopfile-optional.json"
     }
 
     if ($installVSCode) {
