@@ -2,7 +2,6 @@
     "recommendations": [
         "mhutchie.git-graph",
         "ms-vscode.cmake-tools",
-        "twxs.cmake",
         "ms-vscode.cpptools",
         "ms-vscode.cpptools-themes",
         "visualstudioexptteam.intellicode-api-usage-examples",
